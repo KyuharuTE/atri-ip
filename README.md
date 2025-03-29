@@ -1,4 +1,4 @@
-<div align="center"><img alt="FRIT Logo" src="https://ip.afrit.cn/image/logo.png" width="200" height="200"/></div>
+<div align="center"><img src="https://ip.afrit.cn/image/logo.jpg" width="200" height="200"/></div>
 <h1 align="center">ATRI - IP</h1>
 
 <div align="center">
