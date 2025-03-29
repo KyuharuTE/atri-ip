@@ -1,5 +1,5 @@
 <div align="center"><img alt="FRIT Logo" src="https://ip.afrit.cn/image/logo.png" width="200" height="200"/></div>
-<h1 align="center">ATRI - IP/h1>
+<h1 align="center">ATRI - IP</h1>
 
 <div align="center">
 高性能的 IP 探针实现
@@ -19,7 +19,8 @@
 # 📝 如何部署
 1. 部署 NAPCAT 服务端 [https://napneko.github.io/](https://napneko.github.io/)
 2. 开放 NAPCAT WebSocket 服务端
-3. 部署 BOT 后端
+3. 部署 BOT 后端 [https://github.com/KyuharuTE/atri-ip/tree/main/bot-pub](https://github.com/KyuharuTE/atri-ip/tree/main/bot-pub)
+4. 部署 WEB 前端 [https://github.com/KyuharuTE/atri-ip/tree/main/atri-web-pub](https://github.com/KyuharuTE/atri-ip/tree/main/atri-web-pub)
 
 # 🎉 特别鸣谢
 - [ONO](https://github.com/cwuom/ono)
@@ -28,11 +29,11 @@
 ------------
 
 # ✅ 实现功能
-[x] IP 探针基础功能
-[x] Elem 转 LongMSG
-[x] 转 ARK
-[x] DEX 转换
-[x] 等等
+- [x] IP 探针基础功能
+- [x] Elem 转 LongMSG
+- [x] 转 ARK
+- [x] DEX 转换
+- [x] 等等
 
 ------------
 
