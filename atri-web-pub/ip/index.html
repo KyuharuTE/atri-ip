@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"
+		/>
+		<meta name="renderer" content="webkit" />
+		<link rel="stylesheet" href="/static/mdui/mdui.css" />
+		<script src="/static/mdui/mdui.global.js"></script>
+		<link href="/static/css/icon.css" rel="stylesheet" />
+		<link href="/static/css/afrit.css" rel="stylesheet" />
+		<script src="/static/js/afrit.js"></script>
+		<title>iP 探针</title>
+	</head>
+	<body>
+		<mdui-dialog
+			headline="iP 列表"
+			close-on-overlay-click
+			id="ip-list-dialog"
+		></mdui-dialog>
+		<mdui-layout full-height>
+			<mdui-layout-main>
+				<div class="center">
+					<div class="mdui-prose">
+						<mdui-card>
+							<div
+								style="
+									display: flex;
+									justify-content: space-between;
+									align-items: center;
+								"
+							>
+								<h2 style="margin: 0">探针列表</h2>
+								<div>
+									<mdui-button-icon
+										icon="refresh--outlined"
+										id="refresh"
+									></mdui-button-icon>
+									<mdui-button-icon
+										icon="add--outlined"
+										id="add"
+									></mdui-button-icon>
+								</div>
+							</div>
+							<mdui-divider></mdui-divider>
+							<mdui-list
+								id="list"
+								style="text-align: left"
+							></mdui-list>
+						</mdui-card>
+					</div>
+				</div>
+			</mdui-layout-main>
+		</mdui-layout>
+
+		<script src="/static/js/utils.js"></script>
+		<script>
+			class IpManager {
+				constructor() {
+					this.utils = window.afritUtils;
+					this.listElement = document.getElementById("list");
+					this.ipListDialog =
+						document.getElementById("ip-list-dialog");
+				}
+
+				async init() {
+					if (!this.utils.checkAuth()) return;
+
+					this.bindEvents();
+					await this.refreshList();
+				}
+
+				bindEvents() {
+					document
+						.getElementById("add")
+						.addEventListener("click", () => this.addIp());
+
+					document
+						.getElementById("refresh")
+						.addEventListener("click", async () => {
+							await this.refreshList();
+							this.utils.showMessage("刷新成功");
+						});
+
+					this.listElement.addEventListener("click", (event) =>
+						this.handleListItemClick(event)
+					);
+				}
+
+				async refreshList() {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.ip.list
+					);
+					if (!data) return;
+
+					if (data.code === 200) {
+						if (data.data.length <= 0) {
+							this.listElement.innerHTML =
+								"<mdui-list-item>暂无数据</mdui-list-item>";
+							return;
+						}
+
+						this.listElement.innerHTML = data.data
+							.map(
+								(item) => `
+                                <mdui-list-item data-id="${item.id}">
+                                    ID: ${item.id} iP 数量: ${item.count}
+                                </mdui-list-item>
+                            `
+							)
+							.join("");
+					}
+				}
+
+				async addIp() {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.ip.add
+					);
+					if (!data) return;
+
+					if (data.code === 200) {
+						this.utils.showMessage("添加成功");
+						await this.refreshList();
+					}
+				}
+
+				async showIpList(ipData) {
+					if (!ipData.data.length) {
+						this.utils.showDialog({
+							headline: "iP 列表",
+							description: "没有 iP",
+							actions: [{ text: "关闭" }],
+						});
+						return;
+					}
+
+					this.utils.showMessage("正在获取地理位置信息...");
+
+					const locations = await this.utils.batchGetIpLocations(
+						ipData.data.map((item) => item.ip)
+					);
+
+					const content = locations
+						.map((item) => `${item.ip} ${item.location}`)
+						.join("<br/>");
+
+					this.ipListDialog.innerHTML = content;
+					this.ipListDialog.open = true;
+				}
+
+				handleListItemClick(event) {
+					const target = event.target.closest("mdui-list-item");
+					if (!target) return;
+
+					const id = target.getAttribute("data-id");
+					if (!id) return;
+
+					this.showOperationDialog(id);
+				}
+
+				showOperationDialog(id) {
+					this.utils.showDialog({
+						headline: "操作选项",
+						description: "请选择要执行的操作",
+						actions: [
+							{
+								text: "删除",
+								onClick: () => this.deleteIp(id),
+							},
+							{
+								text: "获取 PB",
+								onClick: () => this.showPbDialog(id),
+							},
+							{
+								text: "获取 ARK",
+								onClick: () => this.showArkDialog(id),
+							},
+							{
+								text: "iP 列表",
+								onClick: () => this.showIpDetails(id),
+							},
+						],
+					});
+				}
+
+				async deleteIp(id) {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.ip.delete,
+						{ method: "GET", params: { id } }
+					);
+
+					if (data?.code === 200) {
+						this.utils.showMessage("删除成功");
+						await this.refreshList();
+					}
+				}
+
+				showPbDialog(id) {
+					const pb = this.utils.generatePB(id);
+					this.utils.showDialog({
+						headline: "PB",
+						description: `${pb}\n你可能需要 longmsg 才能发送`,
+						actions: [
+							{
+								text: "复制",
+								onClick: () => this.utils.copyToClipboard(pb),
+							},
+							{
+								text: "获取 LongMsg",
+								onClick: () => this.getLongMsg(id, pb),
+							},
+							{ text: "关闭" },
+						],
+					});
+				}
+
+				async getLongMsg(id, pb) {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.until.longMsg,
+						{ method: "GET", params: { id, raw_pb: pb } }
+					);
+
+					if (data?.code === 200) {
+						this.utils.showDialog({
+							headline: "LongMSG",
+							description: JSON.stringify(data.data),
+							actions: [
+								{
+									text: "复制",
+									onClick: () =>
+										this.utils.copyToClipboard(
+											JSON.stringify(data.data)
+										),
+								},
+								{ text: "关闭" },
+							],
+						});
+					}
+				}
+
+				async showArkDialog(id) {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.until.arkCard,
+						{
+							method: "GET",
+							params: {
+								id,
+								description:
+									"专为 QQ PB 打造的 iP 探针, 完全免费, 最新支持一键转 LongMSG 无需 ONO 内测",
+							},
+						}
+					);
+
+					if (data?.code === 200) {
+						const ark = JSON.stringify(data.data).replace(
+							"[]",
+							"{}"
+						);
+						this.utils.showDialog({
+							headline: "ARK",
+							description: ark,
+							actions: [
+								{
+									text: "复制",
+									onClick: () =>
+										this.utils.copyToClipboard(ark),
+								},
+								{ text: "关闭" },
+							],
+						});
+					}
+				}
+
+				async showIpDetails(id) {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.ip.details,
+						{ method: "GET", params: { id } }
+					);
+
+					if (data?.code === 200) {
+						await this.showIpList(data);
+					}
+				}
+			}
+
+			document.addEventListener("DOMContentLoaded", () => {
+				const ipManager = new IpManager();
+				ipManager.init();
+			});
+		</script>
+	</body>
+</html>

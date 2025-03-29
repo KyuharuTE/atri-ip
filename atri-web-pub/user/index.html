@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"
+		/>
+		<meta name="renderer" content="webkit" />
+
+		<link rel="stylesheet" href="/static/mdui/mdui.css" />
+		<script src="/static/mdui/mdui.global.js"></script>
+		<link href="/static/css/icon.css" rel="stylesheet" />
+		<link href="/static/css/afrit.css" rel="stylesheet" />
+
+		<script src="/static/js/afrit.js"></script>
+
+		<title>iP 探针</title>
+	</head>
+	<body>
+		<mdui-layout full-height>
+			<mdui-layout-main>
+				<div class="center">
+					<div class="mdui-prose">
+						<mdui-card>
+							<h2>控制台</h2>
+							<mdui-divider></mdui-divider>
+							<mdui-list style="text-align: left">
+								<mdui-list-item id="username"
+									>用户名: Username</mdui-list-item
+								>
+								<mdui-list-item id="password"
+									>邮箱: Email</mdui-list-item
+								>
+								<mdui-list-item id="ip-count"
+									>探针数量: 666</mdui-list-item
+								>
+								<mdui-list-item
+									><div
+										style="
+											display: flex;
+											justify-content: space-between;
+											align-items: center;
+										"
+									>
+										<p id="coin" style="margin: 0">
+											积分: 0
+										</p>
+										<div>
+											<mdui-button-icon
+												icon="add--outlined"
+												id="sign"
+											></mdui-button-icon>
+										</div></div
+								></mdui-list-item>
+							</mdui-list>
+						</mdui-card>
+					</div>
+				</div>
+			</mdui-layout-main>
+		</mdui-layout>
+	</body>
+
+	<script src="/static/js/utils.js"></script>
+	<script>
+		class UserDashboard {
+			constructor() {
+				this.utils = window.afritUtils;
+				this.elements = {
+					username: document.getElementById("username"),
+					email: document.getElementById("password"),
+					ipCount: document.getElementById("ip-count"),
+					coin: document.getElementById("coin"),
+					signButton: document.getElementById("sign"),
+				};
+			}
+
+			async init() {
+				if (!this.utils.checkAuth()) return;
+
+				this.bindEvents();
+				await this.refreshUserInfo();
+			}
+
+			bindEvents() {
+				this.elements.signButton.addEventListener("click", () =>
+					this.handleSign()
+				);
+			}
+
+			async refreshUserInfo() {
+				this.setLoadingState(true);
+
+				try {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.user.info
+					);
+
+					if (data?.code === 200) {
+						this.updateUserInfo(data.data);
+					}
+				} catch (error) {
+					console.error("Failed to refresh user info:", error);
+					this.utils.showMessage("获取用户信息失败，请刷新重试");
+				} finally {
+					this.setLoadingState(false);
+				}
+			}
+
+			updateUserInfo(data) {
+				this.elements.username.innerHTML = `用户名: ${data.username}`;
+				this.elements.email.innerHTML = `邮箱: ${data.email}`;
+				this.elements.ipCount.innerHTML = `探针数量: ${data.ip_count}`;
+				this.elements.coin.innerHTML = `积分: ${data.coin}`;
+			}
+
+			setLoadingState(isLoading) {
+				const elements = Object.values(this.elements);
+				elements.forEach((element) => {
+					if (element) {
+						element.disabled = isLoading;
+					}
+				});
+
+				if (isLoading) {
+					this.utils.showMessage("加载中...", 800);
+				}
+			}
+
+			async handleSign() {
+				this.elements.signButton.disabled = true;
+
+				try {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.user.sign
+					);
+
+					if (data?.code === 200) {
+						this.utils.showMessage(
+							`签到成功，积分 +${data.data.coin}`
+						);
+						await this.refreshUserInfo();
+					}
+				} catch (error) {
+					console.error("Sign in failed:", error);
+					this.utils.showMessage("签到失败，请稍后重试");
+				} finally {
+					this.elements.signButton.disabled = false;
+				}
+			}
+		}
+
+		document.addEventListener("DOMContentLoaded", () => {
+			const dashboard = new UserDashboard();
+			dashboard.init();
+		});
+	</script>
+</html>

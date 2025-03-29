@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"
+		/>
+		<meta name="renderer" content="webkit" />
+
+		<link rel="stylesheet" href="/static/mdui/mdui.css" />
+		<script src="/static/mdui/mdui.global.js"></script>
+		<link href="/static/css/icon.css" rel="stylesheet" />
+		<link href="/static/css/afrit.css" rel="stylesheet" />
+
+		<script src="/static/js/afrit.js"></script>
+
+		<title>iP 探针</title>
+	</head>
+	<body>
+		<mdui-layout full-height>
+			<mdui-layout-main>
+				<div class="center">
+					<div class="mdui-prose">
+						<mdui-card>
+							<h2>登录</h2>
+							<mdui-divider></mdui-divider>
+							<mdui-text-field
+								id="email"
+								variant="outlined"
+								label="邮箱"
+							></mdui-text-field>
+							<mdui-text-field
+								id="password"
+								variant="outlined"
+								type="password"
+								toggle-password
+								label="密码"
+							></mdui-text-field>
+							<mdui-button id="login">登录</mdui-button>
+						</mdui-card>
+					</div>
+				</div>
+			</mdui-layout-main>
+		</mdui-layout>
+	</body>
+
+	<script src="/static/js/utils.js"></script>
+	<script>
+		class LoginManager {
+			constructor() {
+				this.utils = window.afritUtils;
+				this.emailInput = document.getElementById("email");
+				this.passwordInput = document.getElementById("password");
+				this.loginButton = document.getElementById("login");
+			}
+
+			init() {
+				this.bindEvents();
+				this.setupKeyboardSupport();
+			}
+
+			bindEvents() {
+				this.loginButton.addEventListener("click", () =>
+					this.handleLogin()
+				);
+			}
+
+			setupKeyboardSupport() {
+				document.addEventListener("keypress", (e) => {
+					if (e.key === "Enter") {
+						this.handleLogin();
+					}
+				});
+			}
+
+			validateInputs() {
+				const email = this.emailInput.value.trim();
+				const password = this.passwordInput.value.trim();
+
+				if (!email) {
+					this.utils.showMessage("请输入邮箱");
+					this.emailInput.focus();
+					return false;
+				}
+
+				if (!password) {
+					this.utils.showMessage("请输入密码");
+					this.passwordInput.focus();
+					return false;
+				}
+
+				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+				if (!emailRegex.test(email)) {
+					this.utils.showMessage("请输入有效的邮箱地址");
+					this.emailInput.focus();
+					return false;
+				}
+
+				return true;
+			}
+
+			async handleLogin() {
+				if (!this.validateInputs()) return;
+
+				this.loginButton.disabled = true;
+				this.utils.showMessage("登录中...");
+
+				try {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.user.login,
+						{
+							method: "POST",
+							body: JSON.stringify({
+								email: this.emailInput.value.trim(),
+								password: this.passwordInput.value.trim(),
+							}),
+						}
+					);
+
+					if (data?.code === 200) {
+						this.utils.showMessage("登录成功");
+						localStorage.setItem("token", data.data.token);
+						window.location.href = "/user";
+					}
+				} catch (error) {
+					console.error("Login failed:", error);
+				} finally {
+					this.loginButton.disabled = false;
+				}
+			}
+		}
+
+		document.addEventListener("DOMContentLoaded", () => {
+			const loginManager = new LoginManager();
+			loginManager.init();
+		});
+	</script>
+</html>

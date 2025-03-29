@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"
+		/>
+		<meta name="renderer" content="webkit" />
+
+		<link rel="stylesheet" href="/static/mdui/mdui.css" />
+		<script src="/static/mdui/mdui.global.js"></script>
+		<link href="/static/css/icon.css" rel="stylesheet" />
+		<link href="/static/css/afrit.css" rel="stylesheet" />
+
+		<script src="/static/js/afrit.js"></script>
+
+		<title>iP 探针</title>
+	</head>
+	<body>
+		<mdui-layout full-height>
+			<mdui-layout-main>
+				<div class="center">
+					<div class="mdui-prose">
+						<mdui-card>
+							<h2>注册</h2>
+							<mdui-divider></mdui-divider>
+							<mdui-text-field
+								id="username"
+								variant="outlined"
+								label="用户名"
+							></mdui-text-field>
+							<mdui-text-field
+								id="registerEmail"
+								variant="outlined"
+								label="邮箱"
+							></mdui-text-field>
+							<mdui-text-field
+								id="registerPassword"
+								variant="outlined"
+								type="password"
+								toggle-password
+								label="密码"
+							></mdui-text-field>
+							<mdui-text-field
+								id="confirmPassword"
+								variant="outlined"
+								type="password"
+								toggle-password
+								label="确认密码"
+							></mdui-text-field
+							><br />
+							<mdui-button id="register">注册</mdui-button>
+						</mdui-card>
+					</div>
+				</div>
+			</mdui-layout-main>
+		</mdui-layout>
+	</body>
+
+	<script src="/static/js/utils.js"></script>
+	<script>
+		class RegisterManager {
+			constructor() {
+				this.utils = window.afritUtils;
+				this.usernameInput = document.getElementById("username");
+				this.emailInput = document.getElementById("registerEmail");
+				this.passwordInput =
+					document.getElementById("registerPassword");
+				this.confirmPasswordInput =
+					document.getElementById("confirmPassword");
+				this.registerButton = document.getElementById("register");
+			}
+
+			init() {
+				this.bindEvents();
+				this.setupKeyboardSupport();
+			}
+
+			bindEvents() {
+				this.registerButton.addEventListener("click", () =>
+					this.handleRegister()
+				);
+
+				this.confirmPasswordInput.addEventListener("input", () =>
+					this.checkPasswordMatch()
+				);
+			}
+
+			setupKeyboardSupport() {
+				document.addEventListener("keypress", (e) => {
+					if (e.key === "Enter") {
+						this.handleRegister();
+					}
+				});
+			}
+
+			checkPasswordMatch() {
+				const password = this.passwordInput.value;
+				const confirmPassword = this.confirmPasswordInput.value;
+
+				if (confirmPassword && password !== confirmPassword) {
+					this.confirmPasswordInput.invalid = true;
+					this.confirmPasswordInput.helperText = "密码不匹配";
+				} else {
+					this.confirmPasswordInput.invalid = false;
+					this.confirmPasswordInput.helperText = "";
+				}
+			}
+
+			validateInputs() {
+				const username = this.usernameInput.value.trim();
+				const email = this.emailInput.value.trim();
+				const password = this.passwordInput.value;
+				const confirmPassword = this.confirmPasswordInput.value;
+
+				if (!username) {
+					this.utils.showMessage("请输入用户名");
+					this.usernameInput.focus();
+					return false;
+				}
+
+				if (!email) {
+					this.utils.showMessage("请输入邮箱");
+					this.emailInput.focus();
+					return false;
+				}
+
+				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+				if (!emailRegex.test(email)) {
+					this.utils.showMessage("请输入有效的邮箱地址");
+					this.emailInput.focus();
+					return false;
+				}
+
+				if (!password) {
+					this.utils.showMessage("请输入密码");
+					this.passwordInput.focus();
+					return false;
+				}
+
+				if (password.length < 6) {
+					this.utils.showMessage("密码长度至少为6位");
+					this.passwordInput.focus();
+					return false;
+				}
+
+				if (password !== confirmPassword) {
+					this.utils.showMessage("两次输入的密码不一致");
+					this.confirmPasswordInput.focus();
+					return false;
+				}
+
+				return true;
+			}
+
+			async handleRegister() {
+				if (!this.validateInputs()) return;
+
+				this.registerButton.disabled = true;
+				this.utils.showMessage("注册中...");
+
+				try {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.user.register,
+						{
+							method: "POST",
+							body: JSON.stringify({
+								username: this.usernameInput.value.trim(),
+								email: this.emailInput.value.trim(),
+								password: this.passwordInput.value,
+							}),
+						}
+					);
+
+					if (data?.code === 200) {
+						this.utils.showMessage("注册成功，即将跳转到登录页面");
+						setTimeout(() => {
+							window.location.href = "/user/login";
+						}, 1500);
+					}
+				} catch (error) {
+					console.error("Registration failed:", error);
+				} finally {
+					this.registerButton.disabled = false;
+				}
+			}
+		}
+
+		document.addEventListener("DOMContentLoaded", () => {
+			const registerManager = new RegisterManager();
+			registerManager.init();
+		});
+	</script>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"
+		/>
+		<meta name="renderer" content="webkit" />
+
+		<link rel="stylesheet" href="/static/mdui/mdui.css" />
+		<script src="/static/mdui/mdui.global.js"></script>
+		<link href="/static/css/icon.css" rel="stylesheet" />
+		<link href="/static/css/afrit.css" rel="stylesheet" />
+
+		<script src="/static/js/afrit.js"></script>
+
+		<title>iP 探针</title>
+	</head>
+	<body>
+		<mdui-layout full-height>
+			<mdui-layout-main>
+				<div class="center">
+					<div class="mdui-prose">
+						<mdui-card>
+							<h2>获取自定义 LongMSG</h2>
+							<mdui-divider></mdui-divider>
+							<mdui-text-field
+								autosize
+								id="pb-content"
+								variant="outlined"
+								label="PB 内容"
+							></mdui-text-field>
+							<mdui-button id="get-long-msg-btn"
+								>获取</mdui-button
+							>
+						</mdui-card>
+						<mdui-card>
+							<h2>DEX 码转换</h2>
+							<mdui-divider></mdui-divider>
+							<mdui-text-field
+								max-rows="3"
+								id="raw-text-content"
+								variant="outlined"
+								label="原字符串"
+							></mdui-text-field>
+							<mdui-button id="convert">转 DEX</mdui-button>
+							<mdui-button id="convert-back"
+								>转字符串</mdui-button
+							>
+							<mdui-text-field
+								id="dex-content"
+								variant="outlined"
+								label="DEX 码"
+							></mdui-text-field>
+						</mdui-card>
+					</div>
+				</div>
+			</mdui-layout-main>
+		</mdui-layout>
+	</body>
+
+	<script src="/static/js/utils.js"></script>
+	<script src="https://unpkg.com/pako@2.0.4/dist/pako.min.js"></script>
+	<script>
+		class LongMsgManager {
+			constructor() {
+				this.utils = window.afritUtils;
+				this.elements = {
+					pbContent: document.getElementById("pb-content"),
+					getButton: document.getElementById("get-long-msg-btn"),
+					convertButton: document.getElementById("convert"),
+					convertBackButton: document.getElementById("convert-back"),
+					dexContent: document.getElementById("dex-content"),
+					rawTextContent: document.getElementById("raw-text-content"),
+				};
+			}
+
+			async init() {
+				if (!this.utils.checkAuth()) return;
+				this.bindEvents();
+			}
+
+			bindEvents() {
+				this.elements.getButton.addEventListener("click", () =>
+					this.handleGetLongMsg()
+				);
+
+				this.elements.pbContent.addEventListener("input", () =>
+					this.validateInput()
+				);
+
+				document.addEventListener("keypress", (e) => {
+					if (e.key === "Enter" && e.ctrlKey) {
+						this.handleGetLongMsg();
+					}
+				});
+
+				this.elements.convertButton.addEventListener("click", () =>
+					this.convertToDex()
+				);
+
+				this.elements.convertBackButton.addEventListener("click", () =>
+					this.convertToString()
+				);
+			}
+
+			validateInput() {
+				const content = this.elements.pbContent.value.trim();
+
+				try {
+					if (content) {
+						JSON.parse(content);
+						this.elements.pbContent.invalid = false;
+						this.elements.pbContent.helperText = "";
+					}
+				} catch (e) {
+					this.elements.pbContent.invalid = true;
+					this.elements.pbContent.helperText = "请输入有效的JSON格式";
+				}
+
+				this.elements.getButton.disabled =
+					!content || this.elements.pbContent.invalid;
+			}
+
+			async handleGetLongMsg() {
+				const content = this.elements.pbContent.value.trim();
+				if (!content) {
+					this.utils.showMessage("请输入PB内容");
+					return;
+				}
+
+				try {
+					const priceData = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.until.prices
+					);
+
+					if (!priceData?.code === 200) return;
+
+					const price = priceData.data.long_msg;
+
+					const confirmed = await this.showConfirmDialog(price);
+					if (!confirmed) return;
+
+					await this.getLongMsg(content);
+				} catch (error) {
+					console.error("Get LongMsg failed:", error);
+					this.utils.showMessage("操作失败，请稍后重试");
+				}
+			}
+
+			showConfirmDialog(price) {
+				return new Promise((resolve) => {
+					this.utils.showDialog({
+						headline: "确认获取",
+						description: `你确定要花费 ${price} 积分获取一条 LongMSG 吗？`,
+						actions: [
+							{
+								text: "确定",
+								onClick: () => resolve(true),
+							},
+							{
+								text: "取消",
+								onClick: () => resolve(false),
+							},
+						],
+					});
+				});
+			}
+
+			async getLongMsg(content) {
+				this.elements.getButton.disabled = true;
+				this.utils.showMessage("正在获取...");
+
+				try {
+					const data = await this.utils.apiRequest(
+						this.utils.API_ENDPOINTS.until.longMsg,
+						{
+							method: "GET",
+							params: {
+								id: -52091,
+								raw_pb: content,
+							},
+						}
+					);
+
+					if (data?.code === 200) {
+						this.showResultDialog(data.data);
+					}
+				} finally {
+					this.elements.getButton.disabled = false;
+				}
+			}
+
+			showResultDialog(data) {
+				const result = JSON.stringify(data, null, 2);
+				this.utils.showDialog({
+					headline: "获取成功",
+					description: result,
+					actions: [
+						{
+							text: "复制",
+							onClick: () => this.utils.copyToClipboard(result),
+						},
+						{
+							text: "关闭",
+						},
+					],
+				});
+			}
+
+			convertToDex() {
+				const rawText = this.elements.rawTextContent.value.trim();
+				if (!rawText) {
+					this.utils.showMessage("请输入原字符串");
+					return;
+				}
+
+				let dataBytes = new TextEncoder().encode(rawText);
+
+				const compressed = pako.deflate(dataBytes, {
+					level: 6,
+				});
+
+				const versionedData = new Uint8Array(compressed.length + 1);
+				versionedData[0] = 0x01;
+				versionedData.set(compressed, 1);
+
+				let hexStr = Array.from(versionedData)
+					.map((byte) => byte.toString(16).padStart(2, "0"))
+					.join("")
+					.toUpperCase();
+
+				this.elements.dexContent.value = hexStr;
+			}
+
+			convertToString() {
+				const hexStr = this.elements.dexContent.value.trim();
+				if (!hexStr) {
+					this.utils.showMessage("请输入 DEX 码");
+					return;
+				}
+
+				const hexArray = hexStr.match(/.{1,2}/g);
+				if (!hexArray) {
+					this.utils.showMessage("无效的 DEX 码");
+					return;
+				}
+
+				const byteArray = new Uint8Array(hexArray.map((byte) => parseInt(byte, 16)));
+				const decompressed = pako.inflate(byteArray.slice(1));
+
+				const result = new TextDecoder().decode(decompressed);
+				this.elements.rawTextContent.value = result;
+			}
+		}
+
+		document.addEventListener("DOMContentLoaded", () => {
+			const longMsgManager = new LongMsgManager();
+			longMsgManager.init();
+		});
+	</script>
+</html>

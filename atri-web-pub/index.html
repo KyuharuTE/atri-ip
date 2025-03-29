@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"
+		/>
+		<meta name="renderer" content="webkit" />
+
+		<link rel="stylesheet" href="/static/mdui/mdui.css" />
+		<script src="/static/mdui/mdui.global.js"></script>
+		<link href="/static/css/icon.css" rel="stylesheet" />
+		<link href="/static/css/afrit.css" rel="stylesheet" />
+
+		<script src="/static/js/afrit.js"></script>
+
+		<title>iP 探针</title>
+	</head>
+	<body>
+		<mdui-dialog
+			headline="公告"
+			close-on-overlay-click
+			stacked-actions
+			id="notice-dialog"
+		>
+			<p>Tips: 部分更新需要强制刷新才能应用~</p>
+			<h3>更新日志：</h3>
+			<p>[+] 开放自定义 LongMSG(入口改变需强制刷新)</p>
+			<p>[+] 增加 Coin 作为积分</p>
+			<p>[/] 各种细节优化，本地化 MDUI 库，访问更快</p>
+
+			<mdui-button slot="action" id="notice-dialog-close" variant="text"
+				>关闭</mdui-button
+			>
+			<mdui-button slot="action" id="notice-dialog-refresh" variant="text"
+				>强制刷新</mdui-button
+			>
+			<mdui-button slot="action" id="notice-dialog-never" variant="total"
+				>不再提示</mdui-button
+			>
+		</mdui-dialog>
+		<mdui-layout full-height>
+			<mdui-layout-main>
+				<div class="center">
+					<div class="mdui-prose">
+                        <img src="/static/image/logo.jpg" weight="100" height="100" />
+						<h1>ATRI - iP 探针</h1>
+						<h2>高性能的 iP 探针实现</h2>
+						<p>
+							看不到转 LongMSG 怎么办？
+							<a id="refresh_a">强制刷新</a>
+						</p>
+						<p>还看不到请手动清除缓存</p>
+					</div>
+				</div>
+			</mdui-layout-main>
+		</mdui-layout>
+	</body>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script>
+        class HomeManager {
+            constructor() {
+                this.utils = window.afritUtils;
+                this.storage = window.localStorage;
+                this.elements = {
+                    noticeDialog: document.getElementById("notice-dialog"),
+                    noticeClose: document.getElementById("notice-dialog-close"),
+                    noticeRefresh: document.getElementById("notice-dialog-refresh"),
+                    noticeNever: document.getElementById("notice-dialog-never"),
+                    refreshLink: document.getElementById("refresh_a")
+                };
+            }
+
+            async init() {
+                this.checkLoginStatus();
+                this.bindEvents();
+                await this.showNotice();
+            }
+
+            bindEvents() {
+                this.elements.noticeClose.addEventListener("click", () => {
+                    this.elements.noticeDialog.open = false;
+                });
+
+                this.elements.noticeRefresh.addEventListener("click", () => {
+                    location.reload(true);
+                });
+
+                this.elements.noticeNever.addEventListener("click", () => {
+                    this.handleNeverShowNotice();
+                });
+
+                this.elements.refreshLink.addEventListener("click", () => {
+                    location.replace(location.href);
+                });
+            }
+
+            async checkLoginStatus() {
+                if (!this.utils.token) {
+                    this.utils.showMessage("未登录");
+                    return;
+                }
+
+                try {
+                    const data = await this.utils.apiRequest(
+                        this.utils.API_ENDPOINTS.user.info
+                    );
+
+                    if (!data || data.code === 401 || data.code === 404) {
+                        this.utils.showMessage("登录已失效");
+                        this.storage.removeItem("token");
+                        location.reload();
+                    }
+                } catch (error) {
+                    console.error("Login check failed:", error);
+                    this.utils.showMessage("请求错误，请刷新重试");
+                }
+            }
+
+            async showNotice() {
+                const savedNotice = this.storage.getItem("showNotice");
+                const currentNotice = await CryptoJS.MD5(
+                    this.elements.noticeDialog.innerHTML
+                ).toString();
+
+                if (currentNotice !== savedNotice) {
+                    this.elements.noticeDialog.open = true;
+                }
+            }
+
+            handleNeverShowNotice() {
+                const noticeContent = this.elements.noticeDialog.innerHTML;
+                const noticeHash = CryptoJS.MD5(noticeContent).toString();
+                
+                this.storage.setItem("showNotice", noticeHash);
+                this.utils.showMessage("当有新公告时，会再提醒你哟~");
+                this.elements.noticeDialog.open = false;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const homeManager = new HomeManager();
+            homeManager.init();
+        });
+    </script>
+</html>
