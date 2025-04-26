@@ -1,4 +1,4 @@
-<div align="center"><img src="https://ip.afrit.cn/image/logo.jpg" width="200" height="200"/></div>
+<div align="center"><img src="https://raw.githubusercontent.com/KyuharuTE/atri-ip/refs/heads/main/atri-web-pub/static/image/logo.jpg" width="200" height="200"/></div>
 <h1 align="center">ATRI - IP</h1>
 
 <div align="center">
